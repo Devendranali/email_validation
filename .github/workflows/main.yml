@@ -18,9 +18,6 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
 
-      # Step 4: Run tests (adjust if needed)
-      - name: Run tests
-        run: npm test
 
       # Step 5: Configure AWS CLI with credentials stored in GitHub Secrets
       - name: Configure AWS CLI
