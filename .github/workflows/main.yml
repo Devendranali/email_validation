@@ -1,0 +1,52 @@
+name: Simple Workflow with Email Notification
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow when pushing to the "main" branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Node.js (or your specific environment)
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+
+      # Step 3: Install dependencies (adjust to your project)
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Run tests (adjust if needed)
+      - name: Run tests
+        run: npm test
+
+      # Step 5: Configure AWS CLI with credentials stored in GitHub Secrets
+      - name: Configure AWS CLI
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1  # Set the AWS region (e.g., us-east-1)
+
+      # Step 6: Retrieve email credentials from AWS Secrets Manager
+      - name: Retrieve Email Credentials from Secrets Manager
+        id: retrieve_email
+        run: |
+          EMAIL_SECRET=$(aws secretsmanager get-secret-value --secret-id my-email-credentials --query 'SecretString' --output text)
+          echo "::set-output name=email::$(echo $EMAIL_SECRET | jq -r '.email')"
+          echo "::set-output name=password::$(echo $EMAIL_SECRET | jq -r '.password')"
+
+      # Step 7: Send email notification using AWS SES
+      - name: Send Email Notification
+        if: success()  # Send email only if previous steps were successful
+        run: |
+          aws ses send-email \
+            --from "${{ steps.retrieve_email.outputs.email }}" \
+            --destination "ToAddresses=recipient-email@example.com" \
+            --message "Subject={Data=Pipeline Success},Body={Text={Data=The pipeline has completed successfully.}}" \
+            --region us-east-1
